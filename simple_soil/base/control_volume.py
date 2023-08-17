@@ -9,7 +9,8 @@ class ControlVolume:
         theta: float = 0.2,
         Kv: float = 1e-3,
         KhKv_ratio: float = 10.0,
-        pet_fraction: float = 1.1,
+        bc_epsilon: float = 3.3,
+        pet_fraction: float = 0.15,
     ) -> "ControlVolume":
         self.area = area
         self.thickness = thickness
@@ -18,8 +19,12 @@ class ControlVolume:
         self.theta_fc = theta_fc
         self.theta = theta
         self.Kv = Kv
+        self.KhKvratio = KhKv_ratio
+        self.bc_epsilon = bc_epsilon
         self.pet_fraction = pet_fraction
-        self.theta_pet_max = self.theta_wp * self.pet_fraction
+        self.theta_pet_max = (
+            self.theta_wp + (self.theta - self.theta_wp) * self.pet_fraction
+        )
 
         self._validate()
 
@@ -27,6 +32,12 @@ class ControlVolume:
             theta * (thickness - discharge_thickness) / thickness
         )
         self.Kh = Kv * KhKv_ratio
+
+    def __repr__(self):
+        values = ""
+        for key, value in self.__dict__.items():
+            values += f"{key}={value}\n"
+        return f"{values}"
 
     def _validate(self):
         if self.area < 0.0:
@@ -63,11 +74,22 @@ class ControlVolume:
                 f"vertical hydraulic conductivity ({self.Kv}) "
                 + "must be greater than zero"
             )
-
-        if self.theta_pet_max > self.theta:
+        if self.KhKvratio <= 0.0:
             raise ValueError(
-                f"pet_fraction ({self.pet_fraction}) "
-                + f"exceeds the maximum value ({self.theta / self.theta_fc}), "
-                + f"which is the ratio of theta ({self.theta})"
-                + f"and theta_wp ({self.theta_wp})"
+                "horizontal to vertical hydraulic conductivity ratio "
+                + f"({self.KhKvratio}) must be greater than zero"
+            )
+        if self.bc_epsilon <= 0.0:
+            raise ValueError(
+                f"Brooks-Corey epsilon ({self.bc_epsilon}) must "
+                + "be greater than zero"
+            )
+        if self.pet_fraction < 0.0:
+            raise ValueError(
+                f"pet_fraction ({self.pet_fraction}) must be greater than zero"
+            )
+        if self.pet_fraction > 1.0:
+            raise ValueError(
+                f"pet_fraction ({self.pet_fraction}) must be "
+                + "less than or equal to one"
             )

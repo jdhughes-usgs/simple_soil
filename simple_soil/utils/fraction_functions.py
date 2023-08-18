@@ -17,49 +17,48 @@ def _maximum_water_content(
     return water_content
 
 
-def _saturation(
+def _relative_fraction(
     water_content: float,
     control_volume: ControlVolume,
     theta0: float = 0.0,
     theta1: float = 1.0,
 ) -> float:
     water_content = _maximum_water_content(water_content, control_volume)
-    saturation = np.where(
+    fraction = np.where(
         water_content < theta0,
         0.0,
         (water_content - theta0) / (theta1 - theta0),
     )
-    saturation = np.where(
+    return np.where(
         water_content > theta1,
         1.0,
-        saturation,
+        fraction,
     )
-    return saturation
 
 
-def saturation(
+def saturation_fraction(
     water_content: float,
     control_volume: ControlVolume,
     omega: float = None,
 ) -> float:
     return quadratic_smoother(
-        _saturation(
+        _relative_fraction(
             water_content,
             control_volume=control_volume,
-            theta0=control_volume.theta_wp,
+            theta0=0.0,
             theta1=control_volume.theta,
         ),
         omega=omega,
     )
 
 
-def groundwater_recharge_saturation(
+def groundwater_recharge_fraction(
     water_content: float,
     control_volume: ControlVolume,
     omega: float = None,
 ) -> float:
     return quadratic_smoother(
-        _saturation(
+        _relative_fraction(
             water_content,
             control_volume=control_volume,
             theta0=control_volume.theta_fc,
@@ -69,13 +68,13 @@ def groundwater_recharge_saturation(
     )
 
 
-def surface_discharge_saturation(
+def surface_discharge_fraction(
     water_content: float,
     control_volume: ControlVolume,
     omega: float = None,
 ) -> float:
     return quadratic_smoother(
-        _saturation(
+        _relative_fraction(
             water_content,
             control_volume=control_volume,
             theta0=control_volume.theta_discharge,
@@ -85,13 +84,23 @@ def surface_discharge_saturation(
     )
 
 
-def lateral_discharge_saturation(
+def surface_infiltration_fraction(
+    water_content: float,
+    control_volume: ControlVolume,
+    omega: float = None,
+) -> float:
+    return 1.0 - surface_discharge_fraction(
+        water_content, control_volume, omega=omega
+    )
+
+
+def lateral_discharge_fraction(
     water_content: float,
     control_volume: ControlVolume,
     omega: float = None,
 ) -> float:
     return quadratic_smoother(
-        _saturation(
+        _relative_fraction(
             water_content,
             control_volume=control_volume,
             theta0=control_volume.theta_fc,
@@ -101,13 +110,13 @@ def lateral_discharge_saturation(
     )
 
 
-def pet_saturation(
+def pet_fraction(
     water_content: float,
     control_volume: ControlVolume,
     omega: float = None,
 ) -> float:
     return quadratic_smoother(
-        _saturation(
+        _relative_fraction(
             water_content,
             control_volume=control_volume,
             theta0=control_volume.theta_wp,

@@ -7,9 +7,8 @@ class ControlVolume:
         theta_wp: float = 0.01,
         theta_fc: float = 0.1,
         theta: float = 0.2,
-        Kv: float = 1e-3,
-        KhKv_ratio: float = 10.0,
-        bc_epsilon: float = 3.3,
+        max_vertical_rate: float = 1e-3,
+        horizontal_vertical_ratio: float = 10.0,
         pet_fraction: float = 0.15,
     ) -> "ControlVolume":
         self.area = area
@@ -18,9 +17,8 @@ class ControlVolume:
         self.theta_wp = theta_wp
         self.theta_fc = theta_fc
         self.theta = theta
-        self.Kv = Kv
-        self.KhKvratio = KhKv_ratio
-        self.bc_epsilon = bc_epsilon
+        self.max_vertical_rate = max_vertical_rate
+        self.horizontal_vertical_ratio = horizontal_vertical_ratio
         self.pet_fraction = pet_fraction
         self.theta_pet_max = (
             self.theta_wp + (self.theta - self.theta_wp) * self.pet_fraction
@@ -31,11 +29,13 @@ class ControlVolume:
         self.theta_discharge = (
             theta * (thickness - discharge_thickness) / thickness
         )
-        self.Kh = Kv * KhKv_ratio
+        self.max_horizontal_rate = (
+            max_vertical_rate * horizontal_vertical_ratio
+        )
 
     def __repr__(self):
         values = ""
-        for key, value in self.__dict__.items():
+        for key, value in sorted(self.__dict__.items()):
             values += f"{key}={value}\n"
         return f"{values}"
 
@@ -69,20 +69,16 @@ class ControlVolume:
                 f"field capacity ({self.theta_fc}) must "
                 + f"be less than theta ({self.theta})"
             )
-        if self.Kv < 0.0:
+        if self.max_vertical_rate < 0.0:
             raise ValueError(
-                f"vertical hydraulic conductivity ({self.Kv}) "
+                f"maximum vertical rate ({self.max_vertical_rate}) "
                 + "must be greater than zero"
             )
-        if self.KhKvratio <= 0.0:
+        if self.horizontal_vertical_ratio <= 0.0:
             raise ValueError(
-                "horizontal to vertical hydraulic conductivity ratio "
-                + f"({self.KhKvratio}) must be greater than zero"
-            )
-        if self.bc_epsilon <= 0.0:
-            raise ValueError(
-                f"Brooks-Corey epsilon ({self.bc_epsilon}) must "
-                + "be greater than zero"
+                "horizontal to vertical ratio "
+                + f"({self.horizontal_vertical_ratio}) "
+                + "must be greater than zero"
             )
         if self.pet_fraction < 0.0:
             raise ValueError(

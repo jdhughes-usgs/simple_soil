@@ -2,31 +2,16 @@ from typing import Union
 
 import numpy as np
 
-from ..base.control_volume import ControlVolume
 from .array_utils import array_check
 from .smoothing import quadratic_smoother
 
 
-def _maximum_water_content(
-    water_content: Union[float, np.ndarray],
-    control_volume: ControlVolume,
-) -> np.ndarray:
-    water_content = array_check(water_content)
-    water_content = np.where(
-        water_content > control_volume.theta_sat,
-        control_volume.theta_sat,
-        water_content,
-    )
-    return water_content
-
-
 def _relative_fraction(
     water_content: Union[float, np.ndarray],
-    control_volume: ControlVolume,
     theta0: float = 0.0,
     theta1: float = 1.0,
 ) -> np.ndarray:
-    water_content = _maximum_water_content(water_content, control_volume)
+    water_content = array_check(water_content)
     fraction = np.where(
         water_content < theta0,
         0.0,
@@ -41,84 +26,92 @@ def _relative_fraction(
 
 def saturation_fraction(
     water_content: Union[float, np.ndarray],
-    control_volume: ControlVolume,
+    theta_sat: float,
+    smoothing_omega: float = 1e-6,
 ) -> float:
     return quadratic_smoother(
         _relative_fraction(
             water_content,
-            control_volume=control_volume,
             theta0=0.0,
-            theta1=control_volume.theta_sat,
+            theta1=theta_sat,
         ),
-        omega=control_volume.smoothing_omega,
+        omega=smoothing_omega,
     )
 
 
 def groundwater_recharge_fraction(
     water_content: Union[float, np.ndarray],
-    control_volume: ControlVolume,
+    theta_sat: float,
+    theta_fc: float,
+    smoothing_omega: float = 1e-6,
 ) -> float:
     return quadratic_smoother(
         _relative_fraction(
             water_content,
-            control_volume=control_volume,
-            theta0=control_volume.theta_fc,
-            theta1=control_volume.theta_sat,
+            theta0=theta_fc,
+            theta1=theta_sat,
         ),
-        omega=control_volume.smoothing_omega,
+        omega=smoothing_omega,
     )
 
 
 def surface_discharge_fraction(
     water_content: Union[float, np.ndarray],
-    control_volume: ControlVolume,
+    theta_sat: float,
+    theta_discharge: float,
+    smoothing_omega: float = 1e-6,
 ) -> float:
     return quadratic_smoother(
         _relative_fraction(
             water_content,
-            control_volume=control_volume,
-            theta0=control_volume.theta_discharge,
-            theta1=control_volume.theta_sat,
+            theta0=theta_discharge,
+            theta1=theta_sat,
         ),
-        omega=control_volume.smoothing_omega,
+        omega=smoothing_omega,
     )
 
 
 def surface_infiltration_fraction(
     water_content: Union[float, np.ndarray],
-    control_volume: ControlVolume,
+    theta_sat: float,
+    theta_discharge: float,
+    smoothing_omega: float = 1e-6,
 ) -> float:
     return 1.0 - surface_discharge_fraction(
         water_content,
-        control_volume,
+        theta_sat,
+        theta_discharge,
+        smoothing_omega=smoothing_omega,
     )
 
 
 def lateral_discharge_fraction(
     water_content: Union[float, np.ndarray],
-    control_volume: ControlVolume,
+    theta_sat: float,
+    theta_fc: float,
+    smoothing_omega: float = 1e-6,
 ) -> float:
     return quadratic_smoother(
         _relative_fraction(
             water_content,
-            control_volume=control_volume,
-            theta0=control_volume.theta_fc,
-            theta1=control_volume.theta_sat,
+            theta0=theta_fc,
+            theta1=theta_sat,
         ),
-        omega=control_volume.smoothing_omega,
+        omega=smoothing_omega,
     )
 
 
 def pet_fraction(
     water_content: Union[float, np.ndarray],
-    control_volume: ControlVolume,
+    theta_pet_max: float,
+    theta_wp: float,
+    smoothing_omega: float = 1e-6,
 ) -> float:
     return quadratic_smoother(
         _relative_fraction(
             water_content,
-            control_volume=control_volume,
-            theta0=control_volume.theta_wp,
-            theta1=control_volume.theta_pet_max,
+            theta0=theta_wp,
+            theta1=theta_pet_max,
         ),
-        omega=control_volume.smoothing_omega,
+        omega=smoothing_omega,
     )

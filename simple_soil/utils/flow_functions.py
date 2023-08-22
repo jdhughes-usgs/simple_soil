@@ -5,8 +5,10 @@ import numpy as np
 from .array_utils import array_check
 from .fraction_functions import (
     groundwater_recharge_fraction,
+    lateral_discharge_fraction,
     pet_fraction,
     saturation_fraction,
+    surface_discharge_fraction,
     surface_infiltration_fraction,
 )
 
@@ -31,13 +33,15 @@ def aet_volumetric_rate(
     area: float,
     smoothing_omega: float = 1e-6,
 ) -> float:
-    fraction = pet_fraction(
-        water_content,
-        theta_pet_max,
-        theta_wp,
-        smoothing_omega=smoothing_omega,
+    fraction = float(
+        pet_fraction(
+            water_content,
+            theta_pet_max,
+            theta_wp,
+            smoothing_omega=smoothing_omega,
+        )[0]
     )
-    return -area * fraction[0] * rate
+    return -area * fraction * rate
 
 
 def infiltration_volumetric_rate(
@@ -49,13 +53,17 @@ def infiltration_volumetric_rate(
     max_vertical_rate: float,
     smoothing_omega: float = 1e-6,
 ) -> float:
-    fraction = surface_infiltration_fraction(
-        water_content,
-        theta_sat,
-        theta_discharge,
-        smoothing_omega=smoothing_omega,
+    fraction = float(
+        surface_infiltration_fraction(
+            water_content,
+            theta_sat,
+            theta_discharge,
+            smoothing_omega=smoothing_omega,
+        )[0]
     )
-    return area * fraction[0] * infiltration_depth(rate, max_vertical_rate)
+    return (
+        area * fraction * float(infiltration_depth(rate, max_vertical_rate)[0])
+    )
 
 
 def rejected_infiltration_volumetric_rate(
@@ -102,39 +110,88 @@ def recharge_volumetric_rate(
 
     """
     water_content = array_check(water_content)
-    fraction = groundwater_recharge_fraction(
-        water_content,
-        theta_sat,
-        theta_fc,
-        smoothing_omega=smoothing_omega,
+    fraction = float(
+        groundwater_recharge_fraction(
+            water_content,
+            theta_sat,
+            theta_fc,
+            smoothing_omega=smoothing_omega,
+        )[0]
     )
-    return -area * fraction[0] * max_vertical_rate
+    return -area * fraction * max_vertical_rate
+
+
+def surface_volumetric_rate(
+    water_content: float,
+    theta_sat: float,
+    theta_discharge: float,
+    area: float,
+    max_vertical_rate: float,
+    smoothing_omega: float = 1e-6,
+) -> float:
+    water_content = array_check(water_content)
+    fraction = float(
+        surface_discharge_fraction(
+            water_content,
+            theta_sat,
+            theta_discharge,
+            smoothing_omega=smoothing_omega,
+        )[0]
+    )
+    return -area * fraction * max_vertical_rate
+
+
+def lateral_volumetric_rate(
+    water_content: float,
+    theta_sat: float,
+    theta_fc: float,
+    area: float,
+    max_horizontal_rate: float,
+    smoothing_omega: float = 1e-6,
+) -> float:
+    water_content = array_check(water_content)
+    fraction = float(
+        lateral_discharge_fraction(
+            water_content,
+            theta_sat,
+            theta_fc,
+            smoothing_omega=smoothing_omega,
+        )[0]
+    )
+    return -area * fraction * max_horizontal_rate
 
 
 def volume_change_rate(
     water_content: float,
     water_content0: float,
     theta_sat: float,
+    theta_wp: float,
     area: float,
     thickness: float,
     delta_t: float,
     smoothing_omega: float = 1e-6,
 ) -> np.ndarray:
     v0 = (
-        saturation_fraction(
-            water_content0,
-            theta_sat,
-            smoothing_omega=smoothing_omega,
-        )[0]
+        float(
+            saturation_fraction(
+                water_content0,
+                theta_sat,
+                theta_wp,
+                smoothing_omega=smoothing_omega,
+            )[0]
+        )
         * thickness
         * area
     )
     v1 = (
-        saturation_fraction(
-            water_content,
-            theta_sat,
-            smoothing_omega=smoothing_omega,
-        )[0]
+        float(
+            saturation_fraction(
+                water_content,
+                theta_sat,
+                theta_wp,
+                smoothing_omega=smoothing_omega,
+            )[0]
+        )
         * thickness
         * area
     )

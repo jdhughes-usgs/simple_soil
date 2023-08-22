@@ -27,12 +27,13 @@ def _relative_fraction(
 def saturation_fraction(
     water_content: Union[float, np.ndarray],
     theta_sat: float,
+    theta_wp: float,
     smoothing_omega: float = 1e-6,
 ) -> float:
     return quadratic_smoother(
         _relative_fraction(
             water_content,
-            theta0=0.0,
+            theta0=theta_wp,
             theta1=theta_sat,
         ),
         omega=smoothing_omega,

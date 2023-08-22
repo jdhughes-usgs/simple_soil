@@ -1,8 +1,12 @@
+import pandas as pd
+
 from ..utils.flow_functions import (
     aet_volumetric_rate,
     infiltration_volumetric_rate,
+    lateral_volumetric_rate,
     recharge_volumetric_rate,
     rejected_infiltration_volumetric_rate,
+    surface_volumetric_rate,
     volume_change_rate,
 )
 from ..utils.fraction_functions import saturation_fraction
@@ -70,7 +74,9 @@ class ControlVolume:
         # output data
         self.total_time = 0.0
         self.inflow_volume = None
+        self.surface_volume = None
         self.aet_volume = None
+        self.lateral_volume = None
         self.recharge_volume = None
         self.storage_volume_change = None
 
@@ -78,13 +84,15 @@ class ControlVolume:
             "total_time": [],
             "iterations": [],
             "theta": [],
-            "volume": [],
-            "rejected_inflow_volume": [],
-            "inflow_volume": [],
-            "aet_volume": [],
-            "recharge_volume": [],
-            "storage_volume_change": [],
-            "residual": [],
+            "volume_L3/T": [],
+            "rejected_inflow_L3/T": [],
+            "inflow_L3/T": [],
+            "surface_L3/T": [],
+            "aet_L3/T": [],
+            "lateral_L3/T": [],
+            "recharge_L3/T": [],
+            "storage_change_L3/T": [],
+            "residual_L3/T": [],
         }
 
     def __repr__(self):
@@ -138,7 +146,7 @@ class ControlVolume:
                 f"maximum vertical rate ({self.max_vertical_rate}) "
                 + "must be greater than zero"
             )
-        if self.horizontal_vertical_ratio <= 0.0:
+        if self.horizontal_vertical_ratio < 0.0:
             raise ValueError(
                 "horizontal to vertical ratio "
                 + f"({self.horizontal_vertical_ratio}) "
@@ -177,6 +185,7 @@ class ControlVolume:
             saturation_fraction(
                 water_content,
                 self.theta_sat,
+                self.theta_wp,
                 smoothing_omega=self.smoothing_omega,
             )
             * self.thickness
@@ -226,7 +235,7 @@ class ControlVolume:
         self.theta = theta
         self.error = residual
         self.converged = converged
-        self.volume = self._calculate_volume(theta)
+        self.volume = float(self._calculate_volume(theta)[0])
         return
 
     def output(self):
@@ -248,6 +257,14 @@ class ControlVolume:
             self.area,
             smoothing_omega=self.smoothing_omega,
         )
+        self.lateral_volume = lateral_volumetric_rate(
+            water_content,
+            self.theta_sat,
+            self.theta_fc,
+            self.area,
+            self.max_horizontal_rate,
+            self.smoothing_omega,
+        )
         self.recharge_volume = recharge_volumetric_rate(
             water_content,
             self.theta_sat,
@@ -256,10 +273,19 @@ class ControlVolume:
             self.max_vertical_rate,
             self.smoothing_omega,
         )
+        self.surface_volume = surface_volumetric_rate(
+            water_content,
+            self.theta_sat,
+            self.theta_discharge,
+            self.area,
+            self.max_vertical_rate,
+            smoothing_omega=self.smoothing_omega,
+        )
         self.storage_volume_change = volume_change_rate(
             water_content,
             self.theta0,
             self.theta_sat,
+            self.theta_wp,
             self.area,
             self.thickness,
             self.delta_t,
@@ -270,10 +296,10 @@ class ControlVolume:
         self.output_dict["iterations"].append(self.iterations)
 
         self.output_dict["theta"].append(self.theta)
-        self.output_dict["volume"].append(self.volume)
+        self.output_dict["volume_L3/T"].append(self.volume)
 
-        self.output_dict["inflow_volume"].append(self.inflow_volume)
-        self.output_dict["rejected_inflow_volume"].append(
+        self.output_dict["inflow_L3/T"].append(self.inflow_volume)
+        self.output_dict["rejected_inflow_L3/T"].append(
             rejected_infiltration_volumetric_rate(
                 water_content,
                 self.inflow_rate,
@@ -284,15 +310,32 @@ class ControlVolume:
                 smoothing_omega=self.smoothing_omega,
             )
         )
-        self.output_dict["aet_volume"].append(self.aet_volume)
-        self.output_dict["recharge_volume"].append(self.recharge_volume)
-        self.output_dict["storage_volume_change"].append(
+        self.output_dict["aet_L3/T"].append(self.aet_volume)
+        self.output_dict["lateral_L3/T"].append(self.lateral_volume)
+        self.output_dict["recharge_L3/T"].append(self.recharge_volume)
+        self.output_dict["surface_L3/T"].append(self.surface_volume)
+        self.output_dict["storage_change_L3/T"].append(
             self.storage_volume_change
         )
 
-        self.output_dict["residual"].append(self.error)
+        self.output_dict["residual_L3/T"].append(self.error)
 
         return
+
+    def get_dataframe(self, normalize=False) -> pd.DataFrame:
+        df = pd.DataFrame.from_dict(
+            self.output_dict,
+        ).set_index("total_time")
+        if normalize:
+            rename_dict = {}
+            for column in df.columns:
+                if "_L3/T" in column:
+                    new_column = column.replace("_L3/T", "_L/T")
+                    rename_dict[column] = new_column
+                    df[column] /= self.area
+            if bool(rename_dict):
+                df = df.rename(columns=rename_dict)
+        return df
 
     def residual(self, water_content: float) -> float:
         return (
@@ -313,18 +356,35 @@ class ControlVolume:
                 self.area,
                 smoothing_omega=self.smoothing_omega,
             )
+            + lateral_volumetric_rate(
+                water_content,
+                self.theta_sat,
+                self.theta_fc,
+                self.area,
+                self.max_horizontal_rate,
+                smoothing_omega=self.smoothing_omega,
+            )
             + recharge_volumetric_rate(
                 water_content,
                 self.theta_sat,
                 self.theta_fc,
                 self.area,
                 self.max_vertical_rate,
-                self.smoothing_omega,
+                smoothing_omega=self.smoothing_omega,
+            )
+            + surface_volumetric_rate(
+                water_content,
+                self.theta_sat,
+                self.theta_discharge,
+                self.area,
+                self.max_vertical_rate,
+                smoothing_omega=self.smoothing_omega,
             )
             + volume_change_rate(
                 water_content,
                 self.theta0,
                 self.theta_sat,
+                self.theta_wp,
                 self.area,
                 self.thickness,
                 self.delta_t,

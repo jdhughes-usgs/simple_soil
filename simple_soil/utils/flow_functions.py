@@ -13,6 +13,19 @@ from .fraction_functions import (
 )
 
 
+def flow_factor(
+    water_content: float,
+    flow_rate: float,
+    theta_sat: float,
+    theta_wp: float,
+    bc_epsilon: float = 3.5,
+) -> float:
+    return (
+        flow_rate
+        * ((water_content - theta_wp) / (theta_sat - theta_wp)) ** bc_epsilon
+    )
+
+
 def infiltration_depth(
     rate: Union[float, np.ndarray],
     max_vertical_rate: float,

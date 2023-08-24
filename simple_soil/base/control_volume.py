@@ -2,6 +2,7 @@ import pandas as pd
 
 from ..utils.flow_functions import (
     aet_volumetric_rate,
+    flow_factor,
     infiltration_volumetric_rate,
     lateral_volumetric_rate,
     recharge_volumetric_rate,
@@ -262,16 +263,26 @@ class ControlVolume:
             self.theta_sat,
             self.theta_fc,
             self.area,
-            self.max_horizontal_rate,
-            self.smoothing_omega,
+            flow_factor(
+                water_content,
+                self.max_horizontal_rate,
+                self.theta_sat,
+                self.theta_wp,
+            ),
+            smoothing_omega=self.smoothing_omega,
         )
         self.recharge_volume = recharge_volumetric_rate(
             water_content,
             self.theta_sat,
             self.theta_fc,
             self.area,
-            self.max_vertical_rate,
-            self.smoothing_omega,
+            flow_factor(
+                water_content,
+                self.max_vertical_rate,
+                self.theta_sat,
+                self.theta_wp,
+            ),
+            smoothing_omega=self.smoothing_omega,
         )
         self.surface_volume = surface_volumetric_rate(
             water_content,
@@ -361,7 +372,12 @@ class ControlVolume:
                 self.theta_sat,
                 self.theta_fc,
                 self.area,
-                self.max_horizontal_rate,
+                flow_factor(
+                    water_content,
+                    self.max_horizontal_rate,
+                    self.theta_sat,
+                    self.theta_wp,
+                ),
                 smoothing_omega=self.smoothing_omega,
             )
             + recharge_volumetric_rate(
@@ -369,7 +385,12 @@ class ControlVolume:
                 self.theta_sat,
                 self.theta_fc,
                 self.area,
-                self.max_vertical_rate,
+                flow_factor(
+                    water_content,
+                    self.max_vertical_rate,
+                    self.theta_sat,
+                    self.theta_wp,
+                ),
                 smoothing_omega=self.smoothing_omega,
             )
             + surface_volumetric_rate(

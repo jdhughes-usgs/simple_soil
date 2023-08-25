@@ -11,6 +11,7 @@ from .fraction_functions import (
     surface_discharge_fraction,
     surface_infiltration_fraction,
 )
+from .infiltration_functions import GreenAmpt, InfiltrationConstantLoss
 
 
 def flow_factor(
@@ -23,18 +24,6 @@ def flow_factor(
     return (
         flow_rate
         * ((water_content - theta_wp) / (theta_sat - theta_wp)) ** bc_epsilon
-    )
-
-
-def infiltration_depth(
-    rate: Union[float, np.ndarray],
-    max_vertical_rate: float,
-) -> np.ndarray:
-    rate = array_check(rate)
-    return np.where(
-        rate < max_vertical_rate,
-        rate,
-        max_vertical_rate,
     )
 
 
@@ -64,6 +53,7 @@ def infiltration_volumetric_rate(
     theta_discharge: float,
     area: float,
     max_vertical_rate: float,
+    infiltration_method: Union["InfiltrationConstantLoss", "GreenAmpt"],
     smoothing_omega: float = 1e-6,
 ) -> float:
     fraction = float(
@@ -74,9 +64,13 @@ def infiltration_volumetric_rate(
             smoothing_omega=smoothing_omega,
         )[0]
     )
-    return (
-        area * fraction * float(infiltration_depth(rate, max_vertical_rate)[0])
-    )
+    if rate == 0.0:
+        infiltration_rate = 0.0
+    else:
+        infiltration_rate = infiltration_method.infiltration(
+            rate, water_content
+        )
+    return area * fraction * infiltration_rate
 
 
 def rejected_infiltration_volumetric_rate(
@@ -86,6 +80,7 @@ def rejected_infiltration_volumetric_rate(
     theta_discharge: float,
     area: float,
     max_vertical_rate: float,
+    infiltration_method: str,
     smoothing_omega: float = 1e-6,
 ) -> float:
     return area * rate - infiltration_volumetric_rate(
@@ -95,6 +90,7 @@ def rejected_infiltration_volumetric_rate(
         theta_discharge,
         area,
         max_vertical_rate,
+        infiltration_method,
         smoothing_omega=smoothing_omega,
     )
 

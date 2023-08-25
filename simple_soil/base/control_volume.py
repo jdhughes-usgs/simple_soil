@@ -11,7 +11,16 @@ from ..utils.flow_functions import (
     volume_change_rate,
 )
 from ..utils.fraction_functions import saturation_fraction
+from ..utils.infiltration_functions import GreenAmpt, InfiltrationConstantLoss
 from ..utils.newton_raphson import newton_raphson
+
+LENGTH_UNITS = (
+    "m",
+    "cm",
+    "in",
+    "ft",
+)
+TIME_UNITS = ("d", "hr")
 
 
 class ControlVolume:
@@ -30,6 +39,10 @@ class ControlVolume:
         smoothing_omega: float = 1.0e-6,
         delta_theta: float = 1.0e-4,
         max_iterations: int = 100,
+        length_units: str = "m",
+        time_units: str = "d",
+        infiltration_method: str = "constant",
+        soil: str = None,
     ) -> "ControlVolume":
         self.area = area
         self.thickness = thickness
@@ -48,8 +61,23 @@ class ControlVolume:
         self.smoothing_omega = smoothing_omega
         self.delta_theta = delta_theta
         self.max_iterations = max_iterations
+        self.length_units = length_units.lower()
+        self.time_units = time_units.lower()
 
         self._validate()
+
+        if infiltration_method == "constant":
+            self.infiltration_method = InfiltrationConstantLoss(
+                max_vertical_rate=max_vertical_rate
+            )
+        elif infiltration_method == "green-ampt":
+            self.infiltration_method = GreenAmpt(
+                theta_sat,
+                max_vertical_rate,
+                self.length_units,
+                soil=soil,
+                delta_F=delta_theta,
+            )
 
         self.volume_max = theta_sat * area * thickness
         self.volume0 = theta0 * area * thickness
@@ -177,6 +205,16 @@ class ControlVolume:
                 f"max_iterations ({self.max_iterations}) must "
                 + "be greater than or equal to one"
             )
+        if self.length_units not in LENGTH_UNITS:
+            raise ValueError(
+                f"Invalid length_units ({self.length_units}). "
+                + f"Valid length units are '{', '.join(LENGTH_UNITS)}'."
+            )
+        if self.time_units not in TIME_UNITS:
+            raise ValueError(
+                f"Invalid time_units ({self.time_units}). "
+                + f"Valid length units are '{', '.join(TIME_UNITS)}'."
+            )
 
     def _calculate_volume(
         self,
@@ -248,6 +286,7 @@ class ControlVolume:
             self.theta_discharge,
             self.area,
             self.max_vertical_rate,
+            self.infiltration_method,
             smoothing_omega=self.smoothing_omega,
         )
         self.aet_volume = aet_volumetric_rate(
@@ -318,6 +357,7 @@ class ControlVolume:
                 self.theta_discharge,
                 self.area,
                 self.max_vertical_rate,
+                self.infiltration_method,
                 smoothing_omega=self.smoothing_omega,
             )
         )
@@ -357,6 +397,7 @@ class ControlVolume:
                 self.theta_discharge,
                 self.area,
                 self.max_vertical_rate,
+                self.infiltration_method,
                 smoothing_omega=self.smoothing_omega,
             )
             + aet_volumetric_rate(

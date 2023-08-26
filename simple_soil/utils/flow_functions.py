@@ -52,7 +52,6 @@ def infiltration_volumetric_rate(
     theta_sat: float,
     theta_discharge: float,
     area: float,
-    max_vertical_rate: float,
     infiltration_method: Union["InfiltrationConstantLoss", "GreenAmpt"],
     smoothing_omega: float = 1e-6,
 ) -> float:
@@ -68,7 +67,8 @@ def infiltration_volumetric_rate(
         infiltration_rate = 0.0
     else:
         infiltration_rate = infiltration_method.infiltration(
-            rate, water_content
+            rate,
+            water_content,
         )
     return area * fraction * infiltration_rate
 
@@ -79,7 +79,6 @@ def rejected_infiltration_volumetric_rate(
     theta_sat: float,
     theta_discharge: float,
     area: float,
-    max_vertical_rate: float,
     infiltration_method: str,
     smoothing_omega: float = 1e-6,
 ) -> float:
@@ -89,7 +88,6 @@ def rejected_infiltration_volumetric_rate(
         theta_sat,
         theta_discharge,
         area,
-        max_vertical_rate,
         infiltration_method,
         smoothing_omega=smoothing_omega,
     )
@@ -99,6 +97,7 @@ def recharge_volumetric_rate(
     water_content: float,
     theta_sat: float,
     theta_fc: float,
+    theta_wp: float,
     area: float,
     max_vertical_rate: float,
     smoothing_omega: float = 1e-6,
@@ -118,7 +117,12 @@ def recharge_volumetric_rate(
     -------
 
     """
-    water_content = array_check(water_content)
+    rate = flow_factor(
+        water_content,
+        max_vertical_rate,
+        theta_sat,
+        theta_wp,
+    )
     fraction = float(
         groundwater_recharge_fraction(
             water_content,
@@ -127,7 +131,7 @@ def recharge_volumetric_rate(
             smoothing_omega=smoothing_omega,
         )[0]
     )
-    return -area * fraction * max_vertical_rate
+    return -area * fraction * rate
 
 
 def surface_volumetric_rate(
@@ -154,11 +158,17 @@ def lateral_volumetric_rate(
     water_content: float,
     theta_sat: float,
     theta_fc: float,
+    theta_wp: float,
     area: float,
     max_horizontal_rate: float,
     smoothing_omega: float = 1e-6,
 ) -> float:
-    water_content = array_check(water_content)
+    rate = flow_factor(
+        water_content,
+        max_horizontal_rate,
+        theta_sat,
+        theta_wp,
+    )
     fraction = float(
         lateral_discharge_fraction(
             water_content,
@@ -167,7 +177,7 @@ def lateral_volumetric_rate(
             smoothing_omega=smoothing_omega,
         )[0]
     )
-    return -area * fraction * max_horizontal_rate
+    return -area * fraction * rate
 
 
 def volume_change_rate(

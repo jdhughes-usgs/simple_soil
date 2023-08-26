@@ -4,22 +4,32 @@ from .newton_raphson import newton_raphson
 
 
 class Infiltration:
-    def __init__(self):
-        raise NotImplementedError("do not use base Infiltration class")
+    def __init__(
+        self,
+        K_sat: float,
+    ) -> None:
+        self.K_sat = K_sat
+        self.infiltration_time = None
 
-    def infiltration(self, rate: float, theta: float):
+    def set_infiltration_time(
+        self,
+        infiltration_time: float,
+    ) -> None:
+        self.infiltration_time = infiltration_time
+
+    def infiltration(self, rate: float, theta: float) -> float:
         raise NotImplementedError("do not use base Infiltration class")
 
 
 class InfiltrationConstantLoss(Infiltration):
     def __init__(
         self,
-        max_vertical_rate: float,
+        K_sat: float,
     ):
-        self.max_vertical_rate = max_vertical_rate
+        super().__init__(K_sat)
 
     def infiltration(self, rate: float, theta: float):
-        return min(rate, self.max_vertical_rate)
+        return min(rate, self.K_sat)
 
 
 class GreenAmpt(Infiltration):
@@ -28,11 +38,15 @@ class GreenAmpt(Infiltration):
         theta_sat: float,
         K_sat: float,
         length_units: str,
-        delta_F: float = 1.0e-4,
         soil: str = "sand",
+        delta_F: float = 1.0e-4,
     ):
+        super().__init__(K_sat)
+
+        if soil is None:
+            soil = "sand"
+
         self.theta_sat = theta_sat
-        self.K_sat = K_sat
         self.length_units = length_units
 
         self._set_green_ampt_suction_head(soil)
@@ -85,7 +99,9 @@ class GreenAmpt(Infiltration):
 
     def _green_ampt_residual(self, F: float):
         v = abs(self.psi) * self.delta_theta
-        return F - v * np.log(1.0 + F / v) - self.K_sat * self.total_time
+        return (
+            F - v * np.log(1.0 + F / v) - self.K_sat * self.infiltration_time
+        )
 
     def _green_ampt_derivative(self, F: float):
         return (

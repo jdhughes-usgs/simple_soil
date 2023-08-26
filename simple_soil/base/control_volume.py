@@ -285,7 +285,6 @@ class ControlVolume:
             self.theta_sat,
             self.theta_discharge,
             self.area,
-            self.max_vertical_rate,
             self.infiltration_method,
             smoothing_omega=self.smoothing_omega,
         )
@@ -301,26 +300,18 @@ class ControlVolume:
             water_content,
             self.theta_sat,
             self.theta_fc,
+            self.theta_wp,
             self.area,
-            flow_factor(
-                water_content,
-                self.max_horizontal_rate,
-                self.theta_sat,
-                self.theta_wp,
-            ),
+            self.max_horizontal_rate,
             smoothing_omega=self.smoothing_omega,
         )
         self.recharge_volume = recharge_volumetric_rate(
             water_content,
             self.theta_sat,
             self.theta_fc,
+            self.theta_wp,
             self.area,
-            flow_factor(
-                water_content,
-                self.max_vertical_rate,
-                self.theta_sat,
-                self.theta_wp,
-            ),
+            self.max_vertical_rate,
             smoothing_omega=self.smoothing_omega,
         )
         self.surface_volume = surface_volumetric_rate(
@@ -356,7 +347,6 @@ class ControlVolume:
                 self.theta_sat,
                 self.theta_discharge,
                 self.area,
-                self.max_vertical_rate,
                 self.infiltration_method,
                 smoothing_omega=self.smoothing_omega,
             )
@@ -396,7 +386,6 @@ class ControlVolume:
                 self.theta_sat,
                 self.theta_discharge,
                 self.area,
-                self.max_vertical_rate,
                 self.infiltration_method,
                 smoothing_omega=self.smoothing_omega,
             )
@@ -412,26 +401,18 @@ class ControlVolume:
                 water_content,
                 self.theta_sat,
                 self.theta_fc,
+                self.theta_wp,
                 self.area,
-                flow_factor(
-                    water_content,
-                    self.max_horizontal_rate,
-                    self.theta_sat,
-                    self.theta_wp,
-                ),
+                self.max_horizontal_rate,
                 smoothing_omega=self.smoothing_omega,
             )
             + recharge_volumetric_rate(
                 water_content,
                 self.theta_sat,
                 self.theta_fc,
+                self.theta_wp,
                 self.area,
-                flow_factor(
-                    water_content,
-                    self.max_vertical_rate,
-                    self.theta_sat,
-                    self.theta_wp,
-                ),
+                self.max_vertical_rate,
                 smoothing_omega=self.smoothing_omega,
             )
             + surface_volumetric_rate(

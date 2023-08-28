@@ -28,7 +28,12 @@ class InfiltrationConstantLoss(Infiltration):
     ):
         super().__init__(K_sat)
 
-    def infiltration(self, rate: float, theta: float):
+    def infiltration(
+        self,
+        rate: float,
+        theta: float,
+        theta0: float,
+    ):
         return min(rate, self.K_sat)
 
 
@@ -56,6 +61,7 @@ class GreenAmpt(Infiltration):
         self.delta_F = delta_F
 
         self.theta = 0.0
+        self.theta0 = 0.0
         self.delta_theta = 0.0
         self.total_time = 0.0
 
@@ -122,9 +128,11 @@ class GreenAmpt(Infiltration):
         self,
         rate: float,
         theta: float,
+        theta0: float,
     ) -> float:
         self.theta = theta
-        self.delta_theta = self.theta_sat - self.theta
+        self.theta0 = theta0
+        self.delta_theta = self.theta_sat - self.theta0
         iterations, F, residual, converged = newton_raphson(
             self._green_ampt_residual,
             self._green_ampt_derivative,

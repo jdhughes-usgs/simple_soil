@@ -68,7 +68,7 @@ class ControlVolume:
 
         if infiltration_method == "constant":
             self.infiltration_method = InfiltrationConstantLoss(
-                max_vertical_rate=max_vertical_rate
+                max_vertical_rate,
             )
         elif infiltration_method == "green-ampt":
             self.infiltration_method = GreenAmpt(
@@ -110,10 +110,10 @@ class ControlVolume:
         self.storage_volume_change = None
 
         self.output_dict = {
-            "total_time": [],
+            "total time": [],
             "iterations": [],
             "theta": [],
-            "volume_L3/T": [],
+            "volume_L3": [],
             "rejected_inflow_L3/T": [],
             "inflow_L3/T": [],
             "surface_L3/T": [],
@@ -224,9 +224,9 @@ class ControlVolume:
             saturation_fraction(
                 water_content,
                 self.theta_sat,
-                self.theta_wp,
                 smoothing_omega=self.smoothing_omega,
             )
+            * self.theta_sat
             * self.thickness
             * self.area
         )
@@ -281,6 +281,7 @@ class ControlVolume:
         water_content = self.theta
         self.inflow_volume = infiltration_volumetric_rate(
             water_content,
+            self.theta0,
             self.inflow_rate,
             self.theta_sat,
             self.theta_discharge,
@@ -302,6 +303,7 @@ class ControlVolume:
             self.theta_fc,
             self.theta_wp,
             self.area,
+            self.thickness,
             self.max_horizontal_rate,
             smoothing_omega=self.smoothing_omega,
         )
@@ -311,6 +313,7 @@ class ControlVolume:
             self.theta_fc,
             self.theta_wp,
             self.area,
+            self.thickness,
             self.max_vertical_rate,
             smoothing_omega=self.smoothing_omega,
         )
@@ -326,23 +329,23 @@ class ControlVolume:
             water_content,
             self.theta0,
             self.theta_sat,
-            self.theta_wp,
             self.area,
             self.thickness,
             self.delta_t,
             smoothing_omega=self.smoothing_omega,
         )
 
-        self.output_dict["total_time"].append(self.total_time)
+        self.output_dict["total time"].append(self.total_time)
         self.output_dict["iterations"].append(self.iterations)
 
         self.output_dict["theta"].append(self.theta)
-        self.output_dict["volume_L3/T"].append(self.volume)
+        self.output_dict["volume_L3"].append(self.volume)
 
         self.output_dict["inflow_L3/T"].append(self.inflow_volume)
         self.output_dict["rejected_inflow_L3/T"].append(
             rejected_infiltration_volumetric_rate(
                 water_content,
+                self.theta0,
                 self.inflow_rate,
                 self.theta_sat,
                 self.theta_discharge,
@@ -366,7 +369,7 @@ class ControlVolume:
     def get_dataframe(self, normalize=False) -> pd.DataFrame:
         df = pd.DataFrame.from_dict(
             self.output_dict,
-        ).set_index("total_time")
+        ).set_index("total time")
         if normalize:
             rename_dict = {}
             for column in df.columns:
@@ -382,6 +385,7 @@ class ControlVolume:
         return (
             infiltration_volumetric_rate(
                 water_content,
+                self.theta0,
                 self.inflow_rate,
                 self.theta_sat,
                 self.theta_discharge,
@@ -403,6 +407,7 @@ class ControlVolume:
                 self.theta_fc,
                 self.theta_wp,
                 self.area,
+                self.thickness,
                 self.max_horizontal_rate,
                 smoothing_omega=self.smoothing_omega,
             )
@@ -412,6 +417,7 @@ class ControlVolume:
                 self.theta_fc,
                 self.theta_wp,
                 self.area,
+                self.thickness,
                 self.max_vertical_rate,
                 smoothing_omega=self.smoothing_omega,
             )
@@ -427,7 +433,6 @@ class ControlVolume:
                 water_content,
                 self.theta0,
                 self.theta_sat,
-                self.theta_wp,
                 self.area,
                 self.thickness,
                 self.delta_t,
